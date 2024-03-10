@@ -1,83 +1,79 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace CertificateEncoder
 {
-    public class CertificateGenerator : IDisposable
+    public class CertificateGenerator
     {
         private readonly string crtPath;
         private readonly string privateKeyPath;
-        private bool disposed;
 
-        private readonly RSA rsa;
-
-        private static readonly DateTimeOffset RootLimitDate = DateTimeOffset.UtcNow.AddYears(10);
+        private readonly DateTimeOffset RootLimitDate = DateTimeOffset.UtcNow.AddYears(10);
+        private readonly DateTimeOffset CrtLimitDate = DateTimeOffset.UtcNow.AddYears(1);
         private const int KeySize = 2048;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="rootPath">.cer</param>
-        /// <param name="privateKeyPath">.key</param>
         public CertificateGenerator(string crtPath, string privateKeySavePath)
         {
             this.crtPath = crtPath;
             this.privateKeyPath = privateKeySavePath;
-            rsa = RSA.Create();
-            rsa.KeySize = KeySize;
         }
 
         public void CreateSelfSigned(string cn)
         {
-            // Assine o certificado com a própria chave privada
-            X509Certificate2 certificate = this.CreateRequest(cn).CreateSelfSigned(DateTimeOffset.UtcNow, RootLimitDate);
-
-            // Exporte a chave privada do certificado
-            using RSA privateKey = certificate.GetRSAPrivateKey()!;
-
-            File.WriteAllText(privateKeyPath, ConvertToPEM(privateKey.ExportRSAPrivateKey()));
-            File.WriteAllBytes(crtPath, certificate.Export(X509ContentType.Cert));
+            using var rsa = RSA.Create(KeySize);
+            this.Save(rsa, CreateSelfSignedRequest(rsa, true, cn).CreateSelfSigned(DateTimeOffset.UtcNow, RootLimitDate), X509ContentType.Cert);
         }
 
+        public void Create(string rootPath, string privateKeyPath, string cn, string? serialNumber)
+        {
+            byte[] serialBytes = string.IsNullOrEmpty(serialNumber) ? [0] : Encoding.UTF8.GetBytes(serialNumber);
+            this.Create(new X509Certificate2(rootPath).CopyWithPrivateKey(ReadPEM(privateKeyPath)), cn, serialBytes);
+        }
 
-        private CertificateRequest CreateRequest(string cn)
+        public void Create(X509Certificate2 rootCertificate, string cn, byte[] serialNumber)
+        {
+            using var rsa = RSA.Create(KeySize);
+            this.Save(rsa, CreateClientRequest(rsa, cn).Create(rootCertificate, DateTimeOffset.UtcNow.AddDays(-1), CrtLimitDate, serialNumber), X509ContentType.Cert);
+        }
+
+        private void Save(RSA rsa, X509Certificate2 certificate, X509ContentType contentType)
+        {
+            File.WriteAllText(privateKeyPath, rsa.ExportRSAPrivateKeyPem());
+            File.WriteAllBytes(crtPath, certificate.Export(contentType));
+        }
+
+        private static CertificateRequest CreateSelfSignedRequest(RSA rsa, bool certificateAuthority, string cn)
         {
             // Crie uma solicitação de certificado
             CertificateRequest certificateRequest = new($"CN={cn}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
             // Adicione as informações desejadas ao certificado
-            certificateRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+            certificateRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority, false, 0, certificateAuthority));
 
             return certificateRequest;
         }
 
-        private static string ConvertToPEM(byte[] privateKeyBytes)
+        private static CertificateRequest CreateClientRequest(RSA rsa, string cn)
         {
-            string base64PrivateKey = Convert.ToBase64String(privateKeyBytes);
-            return $"-----BEGIN PRIVATE KEY-----\r\n{base64PrivateKey}\r\n-----END PRIVATE KEY-----";
+            var request = new CertificateRequest($"CN={cn}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+            // Configuração do certificado do cliente
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+            request.CertificateExtensions.Add(
+                new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment | X509KeyUsageFlags.DataEncipherment, false)
+            );
+            request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.2"), new Oid("1.3.6.1.5.5.7.3.1")], false));
+            request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+            return request;
         }
 
-        protected virtual void Dispose(bool disposing)
+        private static RSA ReadPEM(string filePath)
         {
-            if (disposed)
-                return;
-
-            if (disposing)
-                this.rsa.Dispose();
-
-            disposed = true;
-        }
-
-        ~CertificateGenerator()
-        {
-            Dispose(disposing: false);
-        }
-
-        public void Dispose()
-        {
-            ObjectDisposedException.ThrowIf(this.disposed, this);
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
+            RSA rsa = RSA.Create();
+            rsa.ImportFromPem(File.ReadAllText(filePath));
+            return rsa;
         }
     }
 }

@@ -39,13 +39,15 @@
             label3 = new Label();
             cbRoot = new CheckBox();
             gbSelectRoot = new GroupBox();
-            txtPkPath = new TextBox();
+            txtSelectedPrivateKey = new TextBox();
             lblSelectPrivate = new Label();
             btnSelectPrivate = new Button();
-            textBox1 = new TextBox();
+            txtSelectedRoot = new TextBox();
             lblSelectRoot = new Label();
             btnSelectRoot = new Button();
             gbCertificateInfo = new GroupBox();
+            lblSerialNumber = new Label();
+            txtSerialNumber = new TextBox();
             gbSelectRoot.SuspendLayout();
             gbCertificateInfo.SuspendLayout();
             SuspendLayout();
@@ -99,7 +101,7 @@
             // btnGenerate
             // 
             btnGenerate.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnGenerate.Location = new Point(297, 355);
+            btnGenerate.Location = new Point(297, 380);
             btnGenerate.Name = "btnGenerate";
             btnGenerate.Size = new Size(75, 23);
             btnGenerate.TabIndex = 15;
@@ -150,10 +152,10 @@
             // gbSelectRoot
             // 
             gbSelectRoot.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            gbSelectRoot.Controls.Add(txtPkPath);
+            gbSelectRoot.Controls.Add(txtSelectedPrivateKey);
             gbSelectRoot.Controls.Add(lblSelectPrivate);
             gbSelectRoot.Controls.Add(btnSelectPrivate);
-            gbSelectRoot.Controls.Add(textBox1);
+            gbSelectRoot.Controls.Add(txtSelectedRoot);
             gbSelectRoot.Controls.Add(lblSelectRoot);
             gbSelectRoot.Controls.Add(btnSelectRoot);
             gbSelectRoot.Location = new Point(7, 37);
@@ -163,14 +165,14 @@
             gbSelectRoot.TabStop = false;
             gbSelectRoot.Text = "Selecionar Sertificado Root";
             // 
-            // txtPkPath
+            // txtSelectedPrivateKey
             // 
-            txtPkPath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtPkPath.Enabled = false;
-            txtPkPath.Location = new Point(5, 87);
-            txtPkPath.Name = "txtPkPath";
-            txtPkPath.Size = new Size(275, 23);
-            txtPkPath.TabIndex = 11;
+            txtSelectedPrivateKey.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtSelectedPrivateKey.Enabled = false;
+            txtSelectedPrivateKey.Location = new Point(5, 87);
+            txtSelectedPrivateKey.Name = "txtSelectedPrivateKey";
+            txtSelectedPrivateKey.Size = new Size(275, 23);
+            txtSelectedPrivateKey.TabIndex = 11;
             // 
             // lblSelectPrivate
             // 
@@ -190,15 +192,16 @@
             btnSelectPrivate.TabIndex = 12;
             btnSelectPrivate.Text = "Procurar";
             btnSelectPrivate.UseVisualStyleBackColor = true;
+            btnSelectPrivate.Click += OnSelectPrivateClick;
             // 
-            // textBox1
+            // txtSelectedRoot
             // 
-            textBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            textBox1.Enabled = false;
-            textBox1.Location = new Point(5, 37);
-            textBox1.Name = "textBox1";
-            textBox1.Size = new Size(275, 23);
-            textBox1.TabIndex = 8;
+            txtSelectedRoot.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtSelectedRoot.Enabled = false;
+            txtSelectedRoot.Location = new Point(5, 37);
+            txtSelectedRoot.Name = "txtSelectedRoot";
+            txtSelectedRoot.Size = new Size(275, 23);
+            txtSelectedRoot.TabIndex = 8;
             // 
             // lblSelectRoot
             // 
@@ -218,10 +221,13 @@
             btnSelectRoot.TabIndex = 9;
             btnSelectRoot.Text = "Procurar";
             btnSelectRoot.UseVisualStyleBackColor = true;
+            btnSelectRoot.Click += OnSelectRootClick;
             // 
             // gbCertificateInfo
             // 
             gbCertificateInfo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            gbCertificateInfo.Controls.Add(lblSerialNumber);
+            gbCertificateInfo.Controls.Add(txtSerialNumber);
             gbCertificateInfo.Controls.Add(label1);
             gbCertificateInfo.Controls.Add(txtRootPath);
             gbCertificateInfo.Controls.Add(btnFindRoot);
@@ -230,18 +236,35 @@
             gbCertificateInfo.Controls.Add(txtPrivatePath);
             gbCertificateInfo.Controls.Add(txtCn);
             gbCertificateInfo.Controls.Add(label3);
-            gbCertificateInfo.Location = new Point(7, 186);
+            gbCertificateInfo.Location = new Point(7, 167);
             gbCertificateInfo.Name = "gbCertificateInfo";
-            gbCertificateInfo.Size = new Size(365, 160);
+            gbCertificateInfo.Size = new Size(365, 204);
             gbCertificateInfo.TabIndex = 17;
             gbCertificateInfo.TabStop = false;
             gbCertificateInfo.Text = "Informações do certificado";
+            // 
+            // lblSerialNumber
+            // 
+            lblSerialNumber.AutoSize = true;
+            lblSerialNumber.Location = new Point(5, 157);
+            lblSerialNumber.Name = "lblSerialNumber";
+            lblSerialNumber.Size = new Size(94, 15);
+            lblSerialNumber.TabIndex = 15;
+            lblSerialNumber.Text = "Número de série";
+            // 
+            // txtSerialNumber
+            // 
+            txtSerialNumber.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtSerialNumber.Location = new Point(5, 175);
+            txtSerialNumber.Name = "txtSerialNumber";
+            txtSerialNumber.Size = new Size(354, 23);
+            txtSerialNumber.TabIndex = 16;
             // 
             // GenerateRootFrm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(384, 390);
+            ClientSize = new Size(384, 415);
             Controls.Add(gbCertificateInfo);
             Controls.Add(gbSelectRoot);
             Controls.Add(cbRoot);
@@ -271,12 +294,14 @@
         private Label label3;
         private CheckBox cbRoot;
         private GroupBox gbSelectRoot;
-        private TextBox txtPkPath;
+        private TextBox txtSelectedPrivateKey;
         private Label lblSelectPrivate;
         private Button btnSelectPrivate;
-        private TextBox textBox1;
+        private TextBox txtSelectedRoot;
         private Label lblSelectRoot;
         private Button btnSelectRoot;
         private GroupBox gbCertificateInfo;
+        private Label lblSerialNumber;
+        private TextBox txtSerialNumber;
     }
 }
