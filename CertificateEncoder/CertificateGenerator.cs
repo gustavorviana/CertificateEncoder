@@ -4,20 +4,14 @@ using System.Text;
 
 namespace CertificateEncoder
 {
-    public class CertificateGenerator
+    public class CertificateGenerator(string crtPath, string privateKeySavePath)
     {
-        private readonly string crtPath;
-        private readonly string privateKeyPath;
+        private readonly string crtPath = crtPath;
+        private readonly string privateKeyPath = privateKeySavePath;
 
         private readonly DateTimeOffset RootLimitDate = DateTimeOffset.UtcNow.AddYears(10);
         private readonly DateTimeOffset CrtLimitDate = DateTimeOffset.UtcNow.AddYears(1);
         private const int KeySize = 2048;
-
-        public CertificateGenerator(string crtPath, string privateKeySavePath)
-        {
-            this.crtPath = crtPath;
-            this.privateKeyPath = privateKeySavePath;
-        }
 
         public void CreateSelfSigned(string cn)
         {
@@ -25,22 +19,39 @@ namespace CertificateEncoder
             this.Save(rsa, CreateSelfSignedRequest(rsa, true, cn).CreateSelfSigned(DateTimeOffset.UtcNow, RootLimitDate), X509ContentType.Cert);
         }
 
+        public void Create(string rootPath, string privateKeyPath, string cn, string? serialNumber, string password)
+        {
+            byte[] serialBytes = string.IsNullOrEmpty(serialNumber) ? [0] : Encoding.UTF8.GetBytes(serialNumber);
+            this.Create(this.OpenCertificate(rootPath, privateKeyPath), cn, serialBytes, password);
+        }
+
         public void Create(string rootPath, string privateKeyPath, string cn, string? serialNumber)
         {
             byte[] serialBytes = string.IsNullOrEmpty(serialNumber) ? [0] : Encoding.UTF8.GetBytes(serialNumber);
-            this.Create(new X509Certificate2(rootPath).CopyWithPrivateKey(ReadPEM(privateKeyPath)), cn, serialBytes);
+            this.Create(this.OpenCertificate(rootPath, privateKeyPath), cn, serialBytes);
         }
 
         public void Create(X509Certificate2 rootCertificate, string cn, byte[] serialNumber)
         {
             using var rsa = RSA.Create(KeySize);
-            this.Save(rsa, CreateClientRequest(rsa, cn).Create(rootCertificate, DateTimeOffset.UtcNow.AddDays(-1), CrtLimitDate, serialNumber), X509ContentType.Cert);
+            this.Save(rsa, CreateClientRequest(rsa, cn).Create(rootCertificate, DateTimeOffset.UtcNow, CrtLimitDate, serialNumber), X509ContentType.Cert);
+        }
+
+        public void Create(X509Certificate2 rootCertificate, string cn, byte[] serialNumber, string password)
+        {
+            if (string.IsNullOrEmpty(cn))
+                throw new ArgumentException("Uma senha é obrigatória.");
+
+            using var rsa = RSA.Create(KeySize);
+            var certificate = CreateClientRequest(rsa, cn).Create(rootCertificate, DateTimeOffset.UtcNow, CrtLimitDate, serialNumber);
+
+            File.WriteAllBytes(crtPath, certificate.CopyWithPrivateKey(rsa).Export(X509ContentType.Pfx, password));
         }
 
         private void Save(RSA rsa, X509Certificate2 certificate, X509ContentType contentType)
         {
             File.WriteAllText(privateKeyPath, rsa.ExportRSAPrivateKeyPem());
-            File.WriteAllBytes(crtPath, certificate.Export(contentType));
+            File.WriteAllBytes(crtPath, certificate.CopyWithPrivateKey(rsa).Export(contentType));
         }
 
         private static CertificateRequest CreateSelfSignedRequest(RSA rsa, bool certificateAuthority, string cn)
@@ -67,6 +78,11 @@ namespace CertificateEncoder
             request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
 
             return request;
+        }
+
+        private X509Certificate2 OpenCertificate(string path, string privateKeyPath)
+        {
+            return new X509Certificate2(path).CopyWithPrivateKey(ReadPEM(privateKeyPath));
         }
 
         private static RSA ReadPEM(string filePath)
