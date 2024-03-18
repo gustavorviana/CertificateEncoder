@@ -51,7 +51,7 @@ namespace CertificateEncoder
         private void Save(RSA rsa, X509Certificate2 certificate, X509ContentType contentType)
         {
             File.WriteAllText(privateKeyPath, rsa.ExportRSAPrivateKeyPem());
-            File.WriteAllBytes(crtPath, certificate.CopyWithPrivateKey(rsa).Export(contentType));
+            File.WriteAllBytes(crtPath, certificate.Export(contentType));
         }
 
         private static CertificateRequest CreateSelfSignedRequest(RSA rsa, bool certificateAuthority, string cn)
